@@ -1,236 +1,221 @@
 {
-    "swagger": "2.0",
-    "info": {
-      "title": "WhatsApp API",
-      "description": "API untuk mengelola koneksi WhatsApp, mengirim pesan, mengambil chat history, dan mengelola pesan masuk",
-      "version": "1.0.0"
-    },
-    "host": "localhost:3000",
-    "basePath": "/api",
-    "schemes": ["http"],
-    "paths": {
-      "/start-session": {
-        "post": {
-          "summary": "Memulai koneksi WhatsApp",
-          "parameters": [
-            {
-              "name": "body",
-              "in": "body",
-              "required": true,
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "phoneNumber": {
-                    "type": "string",
-                    "example": "6287759975410"
-                  }
+  "swagger": "2.0",
+  "info": {
+    "title": "WhatsApp API",
+    "description": "API untuk mengelola koneksi WhatsApp, mengirim pesan, mengambil chat history, dan mengelola pesan masuk",
+    "version": "1.0.0"
+  },
+  "host": "localhost:3000",
+  "basePath": "/api",
+  "schemes": ["http"],
+  "paths": {
+    "/start-session": {
+      "post": {
+        "summary": "Memulai koneksi WhatsApp",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "phoneNumber": {
+                  "type": "string",
+                  "example": "6287759975410"
                 }
               }
             }
-          ],
-          "responses": {
-            "200": {
-              "description": "Berhasil memulai koneksi WhatsApp"
-            },
-            "400": {
-              "description": "Nomor WhatsApp tidak valid"
-            },
-            "500": {
-              "description": "Terjadi kesalahan saat memulai bot"
-            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Berhasil memulai koneksi WhatsApp"
+          },
+          "400": {
+            "description": "Nomor WhatsApp tidak valid"
+          },
+          "500": {
+            "description": "Terjadi kesalahan saat memulai bot"
           }
         }
-      },
-      "/send-message": {
-        "post": {
-          "summary": "Mengirim pesan WhatsApp",
-          "parameters": [
+      }
+    },
+    "/send-message": {
+      "post": {
+        "summary": "Mengirim pesan WhatsApp",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "phoneNumber": {
+                  "type": "string",
+                  "example": "6287759975410"
+                },
+                "to": {
+                  "type": "string",
+                  "example": "6285551112223"
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Halo dari bot!"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pesan berhasil dikirim"
+          },
+          "400": {
+            "description": "Nomor atau pesan tidak valid"
+          },
+          "500": {
+            "description": "Terjadi kesalahan saat mengirim pesan"
+          }
+        }
+      }
+    },
+    "/chat-history": {
+    "get": {
+        "summary": "Mengambil chat history WhatsApp berdasarkan nomor telepon",
+        "parameters": [
             {
-              "name": "body",
-              "in": "body",
-              "required": true,
-              "schema": {
+                "name": "phoneNumber",
+                "in": "query",
+                "required": true,
+                "type": "string",
+                "example": "6287759975410"
+            }
+        ],
+        "responses": {
+            "200": {
+                "description": "Berhasil mengambil chat history",
+                "schema": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "messageId": { "type": "string" },
+                            "from": { "type": "string" },
+                            "message": { "type": "string" },
+                            "timestamp": { "type": "string", "format": "date-time" }
+                        }
+                    }
+                }
+            },
+            "400": { "description": "Nomor WhatsApp tidak valid" },
+            "404": { "description": "History chat tidak ditemukan" },
+            "500": { "description": "Terjadi kesalahan saat mengambil chat history" }
+        }
+    }
+},
+
+    "/incoming-message": {
+      "get": {
+        "summary": "Mengambil pesan masuk WhatsApp berdasarkan nomor telepon",
+        "parameters": [
+          {
+            "name": "phoneNumber",
+            "in": "query",
+            "required": true,
+            "type": "string",
+            "example": "6287759975410"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Berhasil mengambil pesan masuk",
+            "schema": {
+              "type": "array",
+              "items": {
                 "type": "object",
                 "properties": {
-                  "phoneNumber": {
-                    "type": "string",
-                    "example": "6287759975410"
+                  "messageId": {
+                    "type": "string"
                   },
-                  "to": {
-                    "type": "string",
-                    "example": "6285551112223"
+                  "from": {
+                    "type": "string"
                   },
                   "message": {
+                    "type": "string"
+                  },
+                  "timestamp": {
                     "type": "string",
-                    "example": "Halo dari bot!"
+                    "format": "date-time"
                   }
                 }
               }
             }
-          ],
-          "responses": {
-            "200": {
-              "description": "Pesan berhasil dikirim"
-            },
-            "400": {
-              "description": "Nomor atau pesan tidak valid"
-            },
-            "500": {
-              "description": "Terjadi kesalahan saat mengirim pesan"
-            }
+          },
+          "400": {
+            "description": "Nomor WhatsApp tidak valid"
+          },
+          "404": {
+            "description": "Pesan masuk tidak ditemukan"
+          },
+          "500": {
+            "description": "Terjadi kesalahan saat mengambil pesan masuk"
           }
         }
-      },
-      "/chat-history": {
-        "get": {
-          "summary": "Mengambil chat history WhatsApp berdasarkan nomor telepon",
-          "parameters": [
-            {
-              "name": "phoneNumber",
-              "in": "query",
-              "required": true,
-              "type": "string",
-              "example": "6287759975410"
-            }
-          ],
-          "responses": {
-            "200": {
-              "description": "Berhasil mengambil chat history",
-              "schema": {
-                "type": "array",
-                "items": {
-                  "type": "object",
-                  "properties": {
-                    "messageId": {
-                      "type": "string"
-                    },
-                    "from": {
-                      "type": "string"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "timestamp": {
-                      "type": "string",
-                      "format": "date-time"
-                    }
-                  }
-                }
-              }
-            },
-            "400": {
-              "description": "Nomor WhatsApp tidak valid"
-            },
-            "404": {
-              "description": "History chat tidak ditemukan"
-            },
-            "500": {
-              "description": "Terjadi kesalahan saat mengambil chat history"
-            }
-          }
-        }
-      },
-      "/incoming-message": {
-        "get": {
-          "summary": "Mengambil pesan masuk WhatsApp berdasarkan nomor telepon",
-          "parameters": [
-            {
-              "name": "phoneNumber",
-              "in": "query",
-              "required": true,
-              "type": "string",
-              "example": "6287759975410"
-            }
-          ],
-          "responses": {
-            "200": {
-              "description": "Berhasil mengambil pesan masuk",
-              "schema": {
-                "type": "array",
-                "items": {
-                  "type": "object",
-                  "properties": {
-                    "messageId": {
-                      "type": "string"
-                    },
-                    "from": {
-                      "type": "string"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "timestamp": {
-                      "type": "string",
-                      "format": "date-time"
-                    }
-                  }
-                }
-              }
-            },
-            "400": {
-              "description": "Nomor WhatsApp tidak valid"
-            },
-            "404": {
-              "description": "Pesan masuk tidak ditemukan"
-            },
-            "500": {
-              "description": "Terjadi kesalahan saat mengambil pesan masuk"
-            }
-          }
-        }
-      },
-      "/delete-session": {
-        "post": {
-          "summary": "Menghapus sesi WhatsApp berdasarkan nomor telepon",
-          "parameters": [
-            {
-              "name": "body",
-              "in": "body",
-              "required": true,
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "phoneNumber": {
-                    "type": "string",
-                    "example": "6287759975410"
-                  }
+      }
+    },
+    "/delete-session": {
+      "post": {
+        "summary": "Menghapus sesi WhatsApp berdasarkan nomor telepon",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "phoneNumber": {
+                  "type": "string",
+                  "example": "6287759975410"
                 }
               }
             }
-          ],
-          "responses": {
-            "200": {
-              "description": "Sesi berhasil dihapus"
-            },
-            "400": {
-              "description": "Nomor WhatsApp tidak valid"
-            },
-            "500": {
-              "description": "Terjadi kesalahan saat menghapus sesi"
-            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sesi berhasil dihapus"
+          },
+          "400": {
+            "description": "Nomor WhatsApp tidak valid"
+          },
+          "500": {
+            "description": "Terjadi kesalahan saat menghapus sesi"
           }
         }
-      },
-      "/status": {
-        "get": {
-          "summary": "Memeriksa status koneksi WhatsApp",
-          "parameters": [
-            {
-              "name": "phoneNumber",
-              "in": "query",
-              "required": true,
-              "type": "string",
-              "example": "6287759975410"
-            }
-          ],
-          "responses": {
-            "200": {
-              "description": "Status koneksi WhatsApp",
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "status": { "type": "string", "enum": ["connected", "disconnected"] }
-                }
+      }
+    },
+    "/status": {
+      "get": {
+        "summary": "Memeriksa status koneksi WhatsApp",
+        "parameters": [
+          {
+            "name": "phoneNumber",
+            "in": "query",
+            "required": true,
+            "type": "string",
+            "example": "6287759975410"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Status koneksi WhatsApp",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": { "type": "string", "enum": ["connected", "disconnected"] }
               }
             }
           }
@@ -238,4 +223,4 @@
       }
     }
   }
-  
+}
