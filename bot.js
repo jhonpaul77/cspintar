@@ -33,8 +33,8 @@ const getChatGPTResponse = async (text) => {
     }
 };
 
-// Fungsi untuk memulai bot dan autentikasi WhatsApp Web
-const startBot = async (phoneNumber) => {
+// Fungsi untuk memulai bot dengan Pairing Code
+const startBotWithPairingCode = async (phoneNumber, pairingCode) => {
     const authFolder = `sessions/auth_${phoneNumber}`;
 
     // Cek apakah sudah ada sesi di Redis untuk nomor ini
@@ -53,76 +53,64 @@ const startBot = async (phoneNumber) => {
         // Menyimpan sesi di Redis
         await redis.set(`auth_${phoneNumber}`, JSON.stringify(state));
 
-    } catch (error) {
-        console.error("Gagal membuat koneksi:", error);
-        return;
-    }
+        // Pairing Code (gunakan kode pairing dari WhatsApp Web)
+        sock.ev.on('pairingCode', (generatedPairingCode) => {
+            console.log(`💡 Pairing Code untuk ${phoneNumber}: ${generatedPairingCode}`);
+            // Kirim pairing code ke pengguna untuk memasukkan ke WhatsApp Web
+            // Kamu bisa memanfaatkan API atau metode lain untuk mengirimkan pairing code ke pengguna
+        });
 
-    // Event listener untuk menangani pembaruan kredensial
-    sock.ev.on('creds.update', (creds) => {
-        saveCreds(creds);
-        // Simpan kredensial ke Redis setelah pembaruan
-        redis.set(`auth_${phoneNumber}`, JSON.stringify(creds));
-    });
-
-    sock.ev.on('connection.update', ({ connection, qr, lastDisconnect }) => {
-        if (qr) {
-            console.log(`📢 Scan QR untuk nomor ${phoneNumber}:`);
-            qrcode.generate(qr, { small: true }); // Menampilkan QR Code di terminal
-        }
-
-        if (connection === 'open') {
-            console.log(`✅ Bot ${phoneNumber} berhasil terhubung ke WhatsApp.`);
-            sessions[phoneNumber] = sock; // Menyimpan socket di sessions
-        }
-
-        if (connection === 'close') {
-            const reason = lastDisconnect?.error?.output?.statusCode;
-            console.log(`❌ Koneksi terputus, alasan: ${reason}, mencoba untuk menyambung kembali...`);
-            startBot(phoneNumber); // Coba sambung ulang jika terputus
-        }
-    });
-
-    // Menyimpan pesan masuk di Redis dan mengirim ke ChatGPT
-    sock.ev.on('messages.upsert', async (m) => {
-        const msg = m.messages[0];
-        if (!msg.key.fromMe && msg.message) {
-            const sender = msg.key.remoteJid;
-            const text = msg.message.conversation || msg.message.extendedTextMessage?.text;
-
-            // Mengabaikan pesan jika bukan teks atau dari grup/status broadcast
-            if (!text || sender.includes('g.us') || sender === 'status@broadcast') {
-                console.log(`📩 Pesan dari ${sender} diabaikan.`);
-                return;
+        // Event listener untuk menangani pembaruan koneksi
+        sock.ev.on('connection.update', ({ connection, lastDisconnect }) => {
+            if (connection === 'open') {
+                console.log(`✅ Bot ${phoneNumber} berhasil terhubung ke WhatsApp.`);
+                sessions[phoneNumber] = sock; // Menyimpan socket di sessions
             }
 
-            console.log(`📩 Pesan dari ${sender}: ${text}`);
+            if (connection === 'close') {
+                const reason = lastDisconnect?.error?.output?.statusCode;
+                console.log(`❌ Koneksi terputus, alasan: ${reason}, mencoba untuk menyambung kembali...`);
+                startBotWithPairingCode(phoneNumber, pairingCode); // Coba sambung ulang jika terputus
+            }
+        });
 
-            // Mengirim pesan ke ChatGPT untuk mendapatkan balasan
-            const chatGPTReply = await getChatGPTResponse(text);
+    } catch (error) {
+        console.error("Gagal membuat koneksi:", error);
+    }
 
-            // Kirim balasan ke WhatsApp
-            await sendMessage(sender, chatGPTReply);
+    return sock;
+};
 
-            // Simpan pesan dan balasan di Redis
-            const chatHistoryKey = `chatHistory:${sender}`;
-            let chatHistory = await redis.get(chatHistoryKey);
-            chatHistory = chatHistory ? JSON.parse(chatHistory) : [];
+// Fungsi untuk memulai bot dengan QR Code
+const startBot = async (phoneNumber) => {
+    const authFolder = `sessions/auth_${phoneNumber}`;
 
-            // Simpan pesan baru dan balasan dari ChatGPT
-            chatHistory.push({
-                messageId: msg.key.id,
-                from: sender,
-                message: text,
-                reply: chatGPTReply,
-                timestamp: new Date()
-            });
+    const { state, saveCreds } = await useMultiFileAuthState(authFolder);
 
-            // Simpan kembali ke Redis
-            await redis.set(chatHistoryKey, JSON.stringify(chatHistory));
-            console.log(`Pesan dan balasan disimpan ke Redis: ${chatGPTReply}`);
-        }
-    });
+    let sock;
+    try {
+        sock = makeWASocket({
+            auth: state,
+            printQRInTerminal: true,  // Menampilkan QR di terminal
+        });
+
+        // Menyimpan kredensial ke Redis setelah autentikasi selesai
+        sock.ev.on('creds.update', saveCreds);
+        sock.ev.on('connection.update', ({ connection, lastDisconnect }) => {
+            if (connection === 'open') {
+                console.log(`✅ Bot ${phoneNumber} berhasil terhubung ke WhatsApp.`);
+                sessions[phoneNumber] = sock;
+            }
+            if (connection === 'close') {
+                const reason = lastDisconnect?.error?.output?.statusCode;
+                console.log(`❌ Koneksi terputus, alasan: ${reason}, mencoba untuk menyambung kembali...`);
+                startBot(phoneNumber); // Coba sambung ulang jika terputus
+            }
+        });
+
+    } catch (error) {
+        console.error("Gagal membuat koneksi:", error);
+    }
 
     return sock;
 };
@@ -165,4 +153,4 @@ const sendMessage = async (phoneNumber, to, message) => {
 };
 
 // Ekspor fungsi
-module.exports = { startBot, sendMessage };
+module.exports = { startBot, startBotWithPairingCode, sendMessage };
