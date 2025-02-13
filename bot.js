@@ -37,7 +37,6 @@ const getChatGPTResponse = async (text) => {
 const startBotWithPairingCode = async (phoneNumber, pairingCode) => {
     const authFolder = `sessions/auth_${phoneNumber}`;
 
-    // Cek apakah sudah ada sesi di Redis untuk nomor ini
     const existingSession = await redis.get(`auth_${phoneNumber}`);
     const savedCreds = existingSession ? JSON.parse(existingSession) : {};
 
@@ -50,17 +49,12 @@ const startBotWithPairingCode = async (phoneNumber, pairingCode) => {
             printQRInTerminal: false, // Menonaktifkan QR di terminal
         });
 
-        // Menyimpan sesi di Redis
         await redis.set(`auth_${phoneNumber}`, JSON.stringify(state));
 
-        // Pairing Code (gunakan kode pairing dari WhatsApp Web)
         sock.ev.on('pairingCode', (generatedPairingCode) => {
             console.log(`💡 Pairing Code untuk ${phoneNumber}: ${generatedPairingCode}`);
-            // Kirim pairing code ke pengguna untuk memasukkan ke WhatsApp Web
-            // Kamu bisa memanfaatkan API atau metode lain untuk mengirimkan pairing code ke pengguna
         });
 
-        // Event listener untuk menangani pembaruan koneksi
         sock.ev.on('connection.update', ({ connection, lastDisconnect }) => {
             if (connection === 'open') {
                 console.log(`✅ Bot ${phoneNumber} berhasil terhubung ke WhatsApp.`);
@@ -70,7 +64,52 @@ const startBotWithPairingCode = async (phoneNumber, pairingCode) => {
             if (connection === 'close') {
                 const reason = lastDisconnect?.error?.output?.statusCode;
                 console.log(`❌ Koneksi terputus, alasan: ${reason}, mencoba untuk menyambung kembali...`);
-                startBotWithPairingCode(phoneNumber, pairingCode); // Coba sambung ulang jika terputus
+                startBotWithPairingCode(phoneNumber, pairingCode);
+            }
+        });
+
+        // Menangani pesan masuk dan mengirim balasan menggunakan ChatGPT
+        sock.ev.on('messages.upsert', async (m) => {
+            const msg = m.messages[0];
+            if (!msg.key.fromMe && msg.message) {
+                const sender = msg.key.remoteJid;
+                const text = msg.message.conversation || msg.message.extendedTextMessage?.text;
+
+                if (!text || sender.includes('g.us') || sender === 'status@broadcast') {
+                    console.log(`📩 Pesan dari ${sender} diabaikan.`);
+                    return;
+                }
+
+                console.log(`📩 Pesan dari ${sender}: ${text}`);
+
+                try {
+                    const chatGPTReply = await getChatGPTResponse(text);
+
+                    // Memastikan bot dapat mengakses socket untuk nomor pengirim
+                    if (!sessions[phoneNumber]) {
+                        console.error(`Bot tidak aktif untuk nomor ${phoneNumber}`);
+                        return;
+                    }
+
+                    await sendMessage(phoneNumber, sender, chatGPTReply);
+
+                    const chatHistoryKey = `chatHistory:${sender}`;
+                    let chatHistory = await redis.get(chatHistoryKey);
+                    chatHistory = chatHistory ? JSON.parse(chatHistory) : [];
+
+                    chatHistory.push({
+                        messageId: msg.key.id,
+                        from: sender,
+                        message: text,
+                        reply: chatGPTReply,
+                        timestamp: new Date(),
+                    });
+
+                    await redis.set(chatHistoryKey, JSON.stringify(chatHistory));
+                    console.log(`Pesan dan balasan disimpan ke Redis: ${chatGPTReply}`);
+                } catch (error) {
+                    console.error('Error saat memproses pesan ChatGPT:', error);
+                }
             }
         });
 
@@ -84,17 +123,15 @@ const startBotWithPairingCode = async (phoneNumber, pairingCode) => {
 // Fungsi untuk memulai bot dengan QR Code
 const startBot = async (phoneNumber) => {
     const authFolder = `sessions/auth_${phoneNumber}`;
-
     const { state, saveCreds } = await useMultiFileAuthState(authFolder);
 
     let sock;
     try {
         sock = makeWASocket({
             auth: state,
-            printQRInTerminal: true,  // Menampilkan QR di terminal
+            printQRInTerminal: true, // Menampilkan QR di terminal
         });
 
-        // Menyimpan kredensial ke Redis setelah autentikasi selesai
         sock.ev.on('creds.update', saveCreds);
         sock.ev.on('connection.update', ({ connection, lastDisconnect }) => {
             if (connection === 'open') {
@@ -104,7 +141,52 @@ const startBot = async (phoneNumber) => {
             if (connection === 'close') {
                 const reason = lastDisconnect?.error?.output?.statusCode;
                 console.log(`❌ Koneksi terputus, alasan: ${reason}, mencoba untuk menyambung kembali...`);
-                startBot(phoneNumber); // Coba sambung ulang jika terputus
+                startBot(phoneNumber);
+            }
+        });
+
+        // Menangani pesan masuk dan mengirim balasan menggunakan ChatGPT
+        sock.ev.on('messages.upsert', async (m) => {
+            const msg = m.messages[0];
+            if (!msg.key.fromMe && msg.message) {
+                const sender = msg.key.remoteJid;
+                const text = msg.message.conversation || msg.message.extendedTextMessage?.text;
+
+                if (!text || sender.includes('g.us') || sender === 'status@broadcast') {
+                    console.log(`📩 Pesan dari ${sender} diabaikan.`);
+                    return;
+                }
+
+                console.log(`📩 Pesan dari ${sender}: ${text}`);
+
+                try {
+                    const chatGPTReply = await getChatGPTResponse(text);
+
+                    // Memastikan bot dapat mengakses socket untuk nomor pengirim
+                    if (!sessions[phoneNumber]) {
+                        console.error(`Bot tidak aktif untuk nomor ${phoneNumber}`);
+                        return;
+                    }
+
+                    await sendMessage(phoneNumber, sender, chatGPTReply);
+
+                    const chatHistoryKey = `chatHistory:${sender}`;
+                    let chatHistory = await redis.get(chatHistoryKey);
+                    chatHistory = chatHistory ? JSON.parse(chatHistory) : [];
+
+                    chatHistory.push({
+                        messageId: msg.key.id,
+                        from: sender,
+                        message: text,
+                        reply: chatGPTReply,
+                        timestamp: new Date(),
+                    });
+
+                    await redis.set(chatHistoryKey, JSON.stringify(chatHistory));
+                    console.log(`Pesan dan balasan disimpan ke Redis: ${chatGPTReply}`);
+                } catch (error) {
+                    console.error('Error saat memproses pesan ChatGPT:', error);
+                }
             }
         });
 
@@ -123,34 +205,28 @@ const sendMessage = async (phoneNumber, to, message) => {
         throw new Error('Bot tidak aktif untuk nomor ' + phoneNumber); // Bot tidak terhubung untuk nomor tersebut
     }
 
-    // Pastikan nomor tujuan dalam format yang benar
     const validPhoneNumber = to.includes('@s.whatsapp.net') ? to : to + '@s.whatsapp.net';
 
     try {
         const result = await sock.sendMessage(validPhoneNumber, { text: message });
         console.log(`📤 Pesan terkirim ke ${validPhoneNumber}: ${message}`);
-        
-        // Simpan pesan yang dikirim di Redis
-        const messageId = result.key.id; // ID pesan yang dikirim
+
+        const messageId = result.key.id;
         const chatHistoryKey = `chatHistory:${validPhoneNumber}`;
 
-        // Ambil sejarah chat yang sudah ada, jika ada
         let chatHistory = await redis.get(chatHistoryKey);
         chatHistory = chatHistory ? JSON.parse(chatHistory) : [];
 
-        // Tambahkan pesan baru ke chat history
         chatHistory.push({ messageId, from: phoneNumber, message, timestamp: new Date() });
 
-        // Simpan kembali ke Redis
         await redis.set(chatHistoryKey, JSON.stringify(chatHistory));
         console.log(`Pesan disimpan ke Redis dengan ID: ${messageId}`);
-        
+
         return result;
     } catch (error) {
         console.error('Error sending message:', error);
-        throw error; // Menyebarkan error untuk ditangani di server.js
+        throw error;
     }
 };
 
-// Ekspor fungsi
 module.exports = { startBot, startBotWithPairingCode, sendMessage };

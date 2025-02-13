@@ -9,9 +9,9 @@
   "basePath": "/api",
   "schemes": ["http"],
   "paths": {
-    "/start-session": {
+    "/start-session-qr": {
       "post": {
-        "summary": "Memulai koneksi WhatsApp",
+        "summary": "Memulai koneksi WhatsApp menggunakan QR Code",
         "parameters": [
           {
             "name": "body",
@@ -30,13 +30,49 @@
         ],
         "responses": {
           "200": {
-            "description": "Berhasil memulai koneksi WhatsApp"
+            "description": "Bot berhasil dimulai dengan QR Code"
           },
           "400": {
             "description": "Nomor WhatsApp tidak valid"
           },
           "500": {
-            "description": "Terjadi kesalahan saat memulai bot"
+            "description": "Terjadi kesalahan saat memulai bot dengan QR Code"
+          }
+        }
+      }
+    },
+    "/start-session-pairing": {
+      "post": {
+        "summary": "Memulai koneksi WhatsApp menggunakan pairing code",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "phoneNumber": {
+                  "type": "string",
+                  "example": "6287759975410"
+                },
+                "pairingCode": {
+                  "type": "string",
+                  "example": "123-456-789"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bot berhasil dimulai dengan pairing code"
+          },
+          "400": {
+            "description": "Nomor WhatsApp atau pairing code tidak valid"
+          },
+          "500": {
+            "description": "Terjadi kesalahan saat memulai bot dengan pairing code"
           }
         }
       }
@@ -81,44 +117,9 @@
         }
       }
     },
-    "/chat-history": {
-    "get": {
-        "summary": "Mengambil chat history WhatsApp berdasarkan nomor telepon",
-        "parameters": [
-            {
-                "name": "phoneNumber",
-                "in": "query",
-                "required": true,
-                "type": "string",
-                "example": "6287759975410"
-            }
-        ],
-        "responses": {
-            "200": {
-                "description": "Berhasil mengambil chat history",
-                "schema": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "messageId": { "type": "string" },
-                            "from": { "type": "string" },
-                            "message": { "type": "string" },
-                            "timestamp": { "type": "string", "format": "date-time" }
-                        }
-                    }
-                }
-            },
-            "400": { "description": "Nomor WhatsApp tidak valid" },
-            "404": { "description": "History chat tidak ditemukan" },
-            "500": { "description": "Terjadi kesalahan saat mengambil chat history" }
-        }
-    }
-},
-
-    "/incoming-message": {
+    "/status": {
       "get": {
-        "summary": "Mengambil pesan masuk WhatsApp berdasarkan nomor telepon",
+        "summary": "Memeriksa status koneksi WhatsApp",
         "parameters": [
           {
             "name": "phoneNumber",
@@ -130,38 +131,51 @@
         ],
         "responses": {
           "200": {
-            "description": "Berhasil mengambil pesan masuk",
+            "description": "Status koneksi WhatsApp",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "enum": ["connected", "disconnected"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/chat-history": {
+      "get": {
+        "summary": "Mengambil chat history WhatsApp berdasarkan nomor telepon",
+        "parameters": [
+          {
+            "name": "phoneNumber",
+            "in": "query",
+            "required": true,
+            "type": "string",
+            "example": "6287759975410"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Berhasil mengambil chat history",
             "schema": {
               "type": "array",
               "items": {
                 "type": "object",
                 "properties": {
-                  "messageId": {
-                    "type": "string"
-                  },
-                  "from": {
-                    "type": "string"
-                  },
-                  "message": {
-                    "type": "string"
-                  },
-                  "timestamp": {
-                    "type": "string",
-                    "format": "date-time"
-                  }
+                  "messageId": { "type": "string" },
+                  "from": { "type": "string" },
+                  "message": { "type": "string" },
+                  "timestamp": { "type": "string", "format": "date-time" }
                 }
               }
             }
           },
-          "400": {
-            "description": "Nomor WhatsApp tidak valid"
-          },
-          "404": {
-            "description": "Pesan masuk tidak ditemukan"
-          },
-          "500": {
-            "description": "Terjadi kesalahan saat mengambil pesan masuk"
-          }
+          "400": { "description": "Nomor WhatsApp tidak valid" },
+          "404": { "description": "History chat tidak ditemukan" },
+          "500": { "description": "Terjadi kesalahan saat mengambil chat history" }
         }
       }
     },
@@ -193,31 +207,6 @@
           },
           "500": {
             "description": "Terjadi kesalahan saat menghapus sesi"
-          }
-        }
-      }
-    },
-    "/status": {
-      "get": {
-        "summary": "Memeriksa status koneksi WhatsApp",
-        "parameters": [
-          {
-            "name": "phoneNumber",
-            "in": "query",
-            "required": true,
-            "type": "string",
-            "example": "6287759975410"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Status koneksi WhatsApp",
-            "schema": {
-              "type": "object",
-              "properties": {
-                "status": { "type": "string", "enum": ["connected", "disconnected"] }
-              }
-            }
           }
         }
       }
