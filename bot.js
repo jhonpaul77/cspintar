@@ -93,10 +93,12 @@ const startBotWithPairingCode = async (phoneNumber, pairingCode) => {
 
                     await sendMessage(phoneNumber, sender, chatGPTReply);
 
+                    // Simpan pesan dan balasan ke Redis
                     const chatHistoryKey = `chatHistory:${sender}`;
                     let chatHistory = await redis.get(chatHistoryKey);
                     chatHistory = chatHistory ? JSON.parse(chatHistory) : [];
 
+                    // Menyimpan pesan dan balasan dari ChatGPT
                     chatHistory.push({
                         messageId: msg.key.id,
                         from: sender,
@@ -170,6 +172,7 @@ const startBot = async (phoneNumber) => {
 
                     await sendMessage(phoneNumber, sender, chatGPTReply);
 
+                    // Simpan pesan dan balasan ke Redis
                     const chatHistoryKey = `chatHistory:${sender}`;
                     let chatHistory = await redis.get(chatHistoryKey);
                     chatHistory = chatHistory ? JSON.parse(chatHistory) : [];
@@ -229,4 +232,5 @@ const sendMessage = async (phoneNumber, to, message) => {
     }
 };
 
+// Ekspor fungsi
 module.exports = { startBot, startBotWithPairingCode, sendMessage };
